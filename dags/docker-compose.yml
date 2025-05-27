@@ -1,0 +1,92 @@
+version: '3.7'
+
+services:
+  postgres:
+    image: postgres:13
+    container_name: postgres
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - airflow-network
+
+  airflow-webserver:
+    image: apache/airflow:2.6.3
+    container_name: airflow-webserver
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      - _AIRFLOW_WWW_USER_USERNAME=admin  # Admin username
+      - _AIRFLOW_WWW_USER_PASSWORD=admin  # Admin password
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - turib-airflow-scheduler
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+    networks:
+      - airflow-network
+    command: webserver
+#docker-compose run airflow-webserver airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password admin
+
+  airflow-scheduler:
+    image: apache/airflow:2.6.3
+    container_name: airflow-scheduler
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+    depends_on:
+      - postgres
+      - turib-airflow-scheduler
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+    networks:
+      - airflow-network
+    command: scheduler
+
+  airflow-init:
+    image: apache/airflow:2.6.3
+    container_name: airflow-init
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      - _AIRFLOW_WWW_USER_USERNAME=admin  # Admin username
+      - _AIRFLOW_WWW_USER_PASSWORD=admin  # Admin password
+    depends_on:
+      - postgres
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+    networks:
+      - airflow-network
+    entrypoint: ["airflow", "db", "init"]
+    
+  turib-airflow-scheduler:
+    image: turib-airflow-scheduler:latest
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: turib-airflow-scheduler
+    ports:
+      - "8081:8081"
+    networks:
+      - airflow-network
+
+networks:
+  airflow-network:
+    driver: bridge
+    
+volumes:
+  postgres_data:
+

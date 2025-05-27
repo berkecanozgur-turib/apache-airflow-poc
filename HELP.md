@@ -1,0 +1,31 @@
+# build spring application 
+cd .
+docker build -t turib-airflow-scheduler .
+
+# run docker applications (postgresql, airflow, spring-app)
+cd ./dags
+docker-compose up --build -d 
+# (alternative: docker-compose up --build -d)
+
+# grant user on airflow web server
+docker-compose run airflow-webserver airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password admin
+
+# add records to spring-app to scheduled endpoints
+curl --location 'http://localhost:8081/api/endpoints' \
+--header 'Content-Type: application/json' \
+--data '{
+  "url": "https://jsonplaceholder.typicode.com/todos/2"
+}'
+
+# check records saved successfully.
+curl --location 'http://localhost:8081/api/endpoints'
+
+
+# on ui: http://localhost:8080/
+0- go to DAGs page. 
+1- click unpause/pause dag button. and activate dag.
+2- select "run"s sections data.
+3- select Dag ID.
+4- click task_id named call_all_endpoints
+5- click logs.
+6- check output, result of scheduled service result.
